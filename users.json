@@ -1,0 +1,83 @@
+[
+  {
+    "id": 1,
+    "name": "Nishant Sharma",
+    "email": "nishant@example.com",
+    "password": "123456",
+    "phone": "9876543210",
+    "department": "Engineering",
+    "role": "admin"
+  },
+  {
+    "id": 2,
+    "name": "Muskan Verma",
+    "email": "muskan@example.com",
+    "password": "pass123",
+    "phone": "9876543211",
+    "department": "HR",
+    "role": "user"
+  },
+  {
+    "id": 3,
+    "name": "Gyaneshwar Rao",
+    "email": "gyan@example.com",
+    "password": "abc123",
+    "phone": "9876543212",
+    "department": "Marketing",
+    "role": "user"
+  },
+  {
+    "id": 4,
+    "name": "Nishant  Sharma",
+    "email": "nishants0782@gmail.com",
+    "password": "nish@2003",
+    "phone": "088094 80111",
+    "department": "hr",
+    "role": "user"
+  },
+  {
+    "id": 7,
+    "name": "Nishant  Sharma",
+    "email": "nishants@gmail.com",
+    "password": "123456",
+    "phone": "088094 80111",
+    "department": "development",
+    "role": "user"
+  },
+  {
+    "id": 16,
+    "name": "Nishant  Sharma",
+    "email": "nish@gmail.com",
+    "password": "123456",
+    "phone": "088094 80111",
+    "department": "development",
+    "role": "user"
+  },
+  {
+    "id": 17,
+    "name": "Nishant  Sharma",
+    "email": "xyz@gmail.com",
+    "password": "123456",
+    "phone": "088094 80111",
+    "department": "development",
+    "role": "user"
+  },
+  {
+    "id": 18,
+    "name": "Nishant  Sharma",
+    "email": "user@example.com",
+    "password": "123456",
+    "phone": "088094 80111",
+    "department": "development",
+    "role": "user"
+  },
+  {
+    "id": 19,
+    "name": "Nishant  Sharma",
+    "email": "tis@2003",
+    "password": "123456",
+    "phone": "088094 80111",
+    "department": "development",
+    "role": "user"
+  }
+]
