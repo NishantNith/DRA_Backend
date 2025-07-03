@@ -1,136 +1,149 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const app = express();
 const PORT = 3000;
 
+// Middleware
 app.use(cors({
-  origin: 'https://nishantnith.github.io', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
 app.use(bodyParser.json());
 
-const db = mysql.createPool({
-  host: 'sql12.freesqldatabase.com',
-  user: 'sql12788131',
-  password: '3ReBaF3NET',
-  database: 'user_login'
+// MongoDB Connection
+mongoose.connect('mongodb+srv://ranjanashish9992:Mongo9992@cluster0.1l8hj.mongodb.net/', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => console.log('✅ MongoDB connected'))
+  .catch(err => console.error('❌ MongoDB error:', err));
+
+// Schemas
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String,
+  phone: String,
+  department: String,
+  role: { type: String, default: 'user' }
 });
 
-// Ensure Admin Exists
+const lehDataSchema = new mongoose.Schema({
+  user_id: mongoose.Schema.Types.ObjectId,
+  location: String,
+  description: String,
+  permission_type: String,
+  agency: String,
+  applicable: String,
+  registered: String,
+  registration_number: String,
+  remarks: String,
+  quantity: Number,
+  validity: String,
+  created_at: { type: Date, default: Date.now }
+});
+
+// Models
+const User = mongoose.model('UserLogin', userSchema);
+const LehData = mongoose.model('LehData', lehDataSchema);
+
+// Ensure admin exists
 async function ensureAdminExists() {
-  try {
-    const [adminCheck] = await db.query("SELECT * FROM users WHERE role = 'admin'");
-    if (adminCheck.length === 0) {
-      await db.query(
-        "INSERT INTO users (name, email, phone, department, password, role) VALUES (?, ?, ?, ?, ?, ?)",
-        ['Admin', 'admin@example.com', '9999999999', 'Admin Dept', 'admin123', 'admin']
-      );
-      console.log("✅ Admin user created: admin@example.com / admin123");
-    } else {
-      console.log("✅ Admin user already exists");
-    }
-  } catch (err) {
-    console.error("❌ Error ensuring admin user:", err);
+  const admin = await User.findOne({ role: 'admin' });
+  if (!admin) {
+    await User.create({
+      name: 'Admin',
+      email: 'admin@example.com',
+      phone: '9999999999',
+      department: 'Admin Dept',
+      password: 'admin123',
+      role: 'admin'
+    });
+    console.log('✅ Admin created');
+  } else {
+    console.log('✅ Admin already exists');
   }
 }
 
-// LOGIN
+// Routes
+
+// Login
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const [results] = await db.query('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
-    if (results.length > 0) {
-      const user = results[0];
-      res.status(200).json({
-        success: true,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          department: user.department,
-          phone: user.phone,
-          role: user.role
-        }
-      });
+    const user = await User.findOne({ email, password });
+    if (user) {
+      res.json({ success: true, user });
     } else {
-      res.status(401).json({ success: false, message: 'Invalid email or password' });
+      res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Login failed' });
+  } catch {
+    res.status(500).json({ success: false, message: 'Login error' });
   }
 });
 
-// ADD USER
+// Add user
 app.post('/add-user', async (req, res) => {
   const { name, email, phone, department, password } = req.body;
   if (!name || !email || !phone || !department || !password) {
     return res.status(400).json({ success: false, message: 'All fields are required' });
   }
   try {
-    const [existing] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (existing.length > 0) {
-      return res.status(409).json({ success: false, message: 'Email already registered' });
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'Email already exists' });
     }
-
-    await db.query(
-      'INSERT INTO users (name, email, phone, department, password, role) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, email, phone, department, password, 'user']
-    );
-
-    res.status(200).json({ success: true, message: 'User added successfully' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Database insert error' });
+    await User.create({ name, email, phone, department, password, role: 'user' });
+    res.json({ success: true, message: 'User added successfully' });
+  } catch {
+    res.status(500).json({ success: false, message: 'Error creating user' });
   }
 });
 
-// EDIT USER
+// Edit user
 app.put('/edit-user/:id', async (req, res) => {
-  const userId = req.params.id;
+  const { id } = req.params;
   const { name, email, phone, department } = req.body;
   try {
-    const [result] = await db.query(
-      'UPDATE users SET name=?, email=?, phone=?, department=? WHERE id=?',
-      [name, email, phone, department, userId]
-    );
-    res.json({ success: result.affectedRows > 0 });
-  } catch (err) {
+    const result = await User.findByIdAndUpdate(id, { name, email, phone, department });
+    res.json({ success: !!result });
+  } catch {
     res.status(500).json({ success: false, message: 'Error updating user' });
   }
 });
 
-// DELETE USER
+// Delete user
 app.delete('/delete-user/:id', async (req, res) => {
-  const userId = req.params.id;
+  const { id } = req.params;
   try {
-    const [check] = await db.query('SELECT role FROM users WHERE id = ?', [userId]);
-    if (check.length === 0) return res.json({ success: false, message: 'User not found' });
-    if (check[0].role === 'admin') return res.json({ success: false, message: '❌ Cannot delete admin user' });
+    const user = await User.findById(id);
+    if (!user) return res.json({ success: false, message: 'User not found' });
+    if (user.role === 'admin') return res.json({ success: false, message: '❌ Cannot delete admin user' });
 
-    const [result] = await db.query('DELETE FROM users WHERE id = ?', [userId]);
-    res.json({ success: result.affectedRows > 0 });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Error deleting user' });
+    await User.findByIdAndDelete(id);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ success: false, message: 'Delete error' });
   }
 });
 
-// GET ALL USERS
+// Get all users
 app.get('/users', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM users');
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch users' });
+    const users = await User.find();
+    res.json(users);
+  } catch {
+    res.status(500).json({ message: 'Fetch error' });
   }
 });
 
-// SUBMIT LEH DATA
+// Submit LEH data
 app.post('/leh-data', async (req, res) => {
   try {
-    let {
+    const {
       user_id, location, description, permission_type, agency,
       applicable, registered, registration_number, remarks,
       quantity, validity
@@ -140,150 +153,105 @@ app.post('/leh-data', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Location is required' });
     }
 
-    const toNA = val => (val === undefined || val === null || String(val).trim() === '' ? 'N/A' : String(val).trim());
-
     const cleaned = {
-      user_id: user_id || null,
-      location: toNA(location),
-      description: toNA(description),
-      permission_type: toNA(permission_type),
-      agency: toNA(agency),
-      applicable: toNA(applicable),
-      registered: toNA(registered),
-      registration_number: toNA(registration_number),
-      remarks: toNA(remarks),
-      quantity: (/^\d+$/.test(quantity)) ? parseInt(quantity) : null,
-      validity: (validity && validity !== 'N/A') ? validity : null
+      user_id,
+      location: location || 'N/A',
+      description: description || 'N/A',
+      permission_type: permission_type || 'N/A',
+      agency: agency || 'N/A',
+      applicable: applicable || 'N/A',
+      registered: registered || 'N/A',
+      registration_number: registration_number || 'N/A',
+      remarks: remarks || 'N/A',
+      quantity: /^\d+$/.test(quantity) ? parseInt(quantity) : null,
+      validity: validity || 'N/A'
     };
 
-    await db.query(
-      `INSERT INTO leh_data 
-        (user_id, location, description, permission_type, agency, applicable, registered, registration_number, remarks, quantity, validity) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [cleaned.user_id, cleaned.location, cleaned.description, cleaned.permission_type, cleaned.agency, cleaned.applicable, cleaned.registered, cleaned.registration_number, cleaned.remarks, cleaned.quantity, cleaned.validity]
-    );
-
-    res.json({ success: true, message: "Leh data submitted successfully" });
+    await LehData.create(cleaned);
+    res.json({ success: true, message: 'LEH data submitted' });
   } catch (err) {
-    console.error("❌ Error saving leh data:", err);
-    res.status(500).json({ success: false, message: "Error saving data" });
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Submission error' });
   }
 });
 
-// UPDATE LEH DATA
+// Edit LEH data
 app.put('/leh-data/id/:id', async (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid ID format' });
+  }
   try {
-    let {
-      user_id, location, description, permission_type, agency,
-      applicable, registered, registration_number, remarks,
-      quantity, validity
-    } = req.body;
-
-    if (!location || location.trim() === '') {
-      return res.status(400).json({ success: false, message: 'Location is required' });
+    const result = await LehData.findByIdAndUpdate(id, req.body);
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Entry not found' });
     }
-
-    const toNA = val => (val === undefined || val === null || String(val).trim() === '' ? 'N/A' : String(val).trim());
-
-    const cleaned = {
-      user_id: user_id || null,
-      location: toNA(location),
-      description: toNA(description),
-      permission_type: toNA(permission_type),
-      agency: toNA(agency),
-      applicable: toNA(applicable),
-      registered: toNA(registered),
-      registration_number: toNA(registration_number),
-      remarks: toNA(remarks),
-      quantity: (/^\d+$/.test(quantity)) ? parseInt(quantity) : null,
-      validity: (validity && validity !== 'N/A') ? validity : null
-    };
-
-    const [result] = await db.query(
-      `UPDATE leh_data SET 
-        user_id = ?, location = ?, description = ?, permission_type = ?, agency = ?, 
-        applicable = ?, registered = ?, registration_number = ?, remarks = ?, 
-        quantity = ?, validity = ? 
-      WHERE id = ?`,
-      [cleaned.user_id, cleaned.location, cleaned.description, cleaned.permission_type, cleaned.agency, cleaned.applicable, cleaned.registered, cleaned.registration_number, cleaned.remarks, cleaned.quantity, cleaned.validity, id]
-    );
-
-    res.json({
-      success: result.affectedRows > 0,
-      message: result.affectedRows > 0 ? "Updated successfully" : "No record found"
-    });
+    res.json({ success: true });
   } catch (err) {
-    console.error("❌ Error updating leh data:", err);
-    res.status(500).json({ success: false, message: "Error updating data" });
+    console.error('Update error:', err);
+    res.status(500).json({ success: false, message: 'Update error' });
   }
 });
 
-// DELETE LEH DATA
+// Delete LEH data
 app.delete('/leh-data/id/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await db.query("DELETE FROM leh_data WHERE id = ?", [id]);
-    res.json({ success: result.affectedRows > 0 });
-  } catch (err) {
-    console.error("❌ Delete Error:", err);
-    res.status(500).json({ success: false, message: "Error deleting record" });
+    await LehData.findByIdAndDelete(id);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ success: false, message: 'Delete error' });
   }
 });
 
-// GET ALL LEH DATA
+// Get all LEH data
 app.get('/leh-data', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM leh_data ORDER BY created_at DESC');
-    res.status(200).json(rows);
-  } catch (err) {
+    const data = await LehData.find().sort({ created_at: -1 });
+    res.json(data);
+  } catch {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// GET LEH DATA BY LOCATION
+// Get LEH data by location
 app.get('/leh-data/location/:location', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM leh_data WHERE location = ? ORDER BY created_at DESC', [req.params.location]);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch data' });
+    const data = await LehData.find({ location: req.params.location }).sort({ created_at: -1 });
+    res.json(data);
+  } catch {
+    res.status(500).json({ success: false, message: 'Fetch error' });
   }
 });
 
-// GET LEH DATA BY ID
+// Get LEH data by ID
 app.get('/leh-data/id/:id', async (req, res) => {
-  const { id } = req.params;
   try {
-    const [rows] = await db.query("SELECT * FROM leh_data WHERE id = ?", [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Record not found" });
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Error fetching record" });
+    const record = await LehData.findById(req.params.id);
+    if (!record) return res.status(404).json({ success: false, message: 'Not found' });
+    res.json(record);
+  } catch {
+    res.status(500).json({ success: false, message: 'Fetch error' });
   }
 });
 
-// RESET PASSWORD
+// Reset password
 app.post('/reset-password', async (req, res) => {
   const { email, newPassword } = req.body;
-  const password = newPassword;
-
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: "Email and password required" });
+  if (!email || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Email and new password required' });
   }
 
   try {
-    const [result] = await db.query("UPDATE users SET password = ? WHERE email = ?", [password, email]);
-    res.json({ success: result.affectedRows > 0 });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Server error. Try again." });
+    const result = await User.findOneAndUpdate({ email }, { password: newPassword });
+    res.json({ success: !!result });
+  } catch {
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// START SERVER
+// Start server
 app.listen(PORT, async () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`🚀 Server live at http://localhost:${PORT}`);
   await ensureAdminExists();
 });
