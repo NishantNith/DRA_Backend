@@ -6,7 +6,11 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = 3000;
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://nishantnith.github.io', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+  credentials: true
+}));
 app.use(bodyParser.json());
 
 const db = mysql.createPool({
