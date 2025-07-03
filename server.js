@@ -10,9 +10,9 @@ app.use(cors());
 app.use(bodyParser.json());
 
 const db = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: 'admin123',
+  host: 'sql12.freesqldatabase.com',
+  user: 'sql12788131',
+  password: '3ReBaF3NET',
   database: 'user_login'
 });
 
