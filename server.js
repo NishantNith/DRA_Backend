@@ -8,7 +8,7 @@ const PORT = 3000;
 
 // Middleware
 app.use(cors({
-  origin: 'https://nishantnith.github.io',
+  origin: ['https://nishantnith.github.io',"http://localhost:5500"],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
